@@ -1,0 +1,302 @@
+---
+title: "PS239 Project"
+author: "Bergliot Christensen"
+date: "December 8, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+setwd("C:/Users/bergliotc/Dropbox/Berkeley/PS239T/17_project")
+library(syuzhet)
+library('foreign')
+require(tm) # Framework for text mining
+require(ggplot2) # for plotting word frequencies
+require(dplyr)
+require(RTextTools) # a machine learning package for text classification written in R
+require(qdap) # Quantiative discourse analysis of transcripts
+require(qdapDictionaries)
+require(SnowballC) # for stemming
+```
+Getting data:
+
+```{r}
+setwd("C:/Users/bergliotc/Dropbox/Berkeley/PS239T/17_project")
+
+data_1 <- read.csv('Snippets_0616_0820.csv')
+data_2 <- read.csv('Snippets_2008_2010.csv')
+data_3 <- read.csv("f_docs_0_120 - Copy.csv")
+data_4 <- read.csv("all_formatted_20151220_20160820.csv")
+data_5 <- read.csv("all_formatted_20151220_20160120_v2.csv")
+data_6 <- read.csv("all_formatted_20151220_20160120.csv")
+data_7 <- read.csv("Snippets_2020_2012_ut101.csv")
+
+data_all <- rbind(data_1, data_2, data_3, data_4, data_5, data_6, data_7) # merging to 1 dataset
+data_all <- unique(data_all) # making sure I only have uniqe values
+
+```
+ I now chunk the data into months:
+ 
+```{r}
+jun_15 <- filter(data_all, grepl("2015-06", data_all$date) == TRUE)
+jul_15 <- filter(data_all, grepl("2015-07", data_all$date) == TRUE)
+aug_15 <- filter(data_all, grepl("2015-08", data_all$date) == TRUE)
+sep_15 <- filter(data_all, grepl("2015-09", data_all$date) == TRUE)
+oct_15 <- filter(data_all, grepl("2015-10", data_all$date) == TRUE)
+nov_15 <- filter(data_all, grepl("2015-11", data_all$date) == TRUE)
+dec_15 <- filter(data_all, grepl("2015-12", data_all$date) == TRUE)
+jan_16 <- filter(data_all, grepl("2016-01", data_all$date) == TRUE)
+feb_16 <- filter(data_all, grepl("2016-02", data_all$date) == TRUE)
+mar_16 <- filter(data_all, grepl("2016-03", data_all$date) == TRUE)
+apr_16 <- filter(data_all, grepl("2016-04", data_all$date) == TRUE)
+may_16 <- filter(data_all, grepl("2016-05", data_all$date) == TRUE)
+jun_16 <- filter(data_all, grepl("2016-06", data_all$date) == TRUE)
+jul_16 <- filter(data_all, grepl("2016-07", data_all$date) == TRUE)
+aug_16 <- filter(data_all, grepl("2016-08", data_all$date) == TRUE)
+sep_16 <- filter(data_all, grepl("2016-09", data_all$date) == TRUE)
+oct_16 <- filter(data_all, grepl("2016-10", data_all$date) == TRUE)
+nov_16 <- filter(data_all, grepl("2016-11", data_all$date) == TRUE)
+
+# I check to see if I got everything by checking if the length of all my chunks matches the length of data_all.
+nrow(rbind(jun_15, jul_15, aug_15, sep_15, oct_15, nov_15, dec_15, jan_16, feb_16, mar_16, apr_16, may_16, jun_16, jul_16, aug_16, sep_16, oct_16, nov_16))
+
+```
+I now preproces every chuck to create corpi:
+
+```{r}
+c_jun_15 <- Corpus(VectorSource(jun_15$lead_paragraph))
+c_jul_15 <- Corpus(VectorSource(jul_15$lead_paragraph))
+c_aug_15 <- Corpus(VectorSource(aug_15$lead_paragraph))
+c_sep_15 <- Corpus(VectorSource(sep_15$lead_paragraph))
+c_oct_15 <- Corpus(VectorSource(oct_15$lead_paragraph))
+c_nov_15 <- Corpus(VectorSource(nov_15$lead_paragraph))
+c_dec_15 <- Corpus(VectorSource(dec_15$lead_paragraph))
+c_jan_16 <- Corpus(VectorSource(jan_16$lead_paragraph))
+c_feb_16 <- Corpus(VectorSource(feb_16$lead_paragraph))
+c_mar_16 <- Corpus(VectorSource(mar_16$lead_paragraph))
+c_apr_16 <- Corpus(VectorSource(apr_16$lead_paragraph))
+c_may_16 <- Corpus(VectorSource(may_16$lead_paragraph))
+c_jun_16 <- Corpus(VectorSource(jun_16$lead_paragraph))
+c_jul_16 <- Corpus(VectorSource(jul_16$lead_paragraph))
+c_aug_16 <- Corpus(VectorSource(aug_16$lead_paragraph))
+c_sep_16 <- Corpus(VectorSource(sep_16$lead_paragraph))
+c_oct_16 <- Corpus(VectorSource(oct_16$lead_paragraph))
+c_nov_16 <- Corpus(VectorSource(nov_16$lead_paragraph))
+
+# I now turn to creating document term matrices and processing each corpus. 
+# I initially remove my own stop words, I want to remove the name of Donald Trump as well as 'president', since these words are obvious and of little analytical interest.
+# Other words like "campaign", "Hillary" "elect" etc are not removed. I wish to see whether the NYT normalizes Trump, and a presense of these words would indicate normalization".
+my_stopwords <- c("Donald", "Trump", "president")
+c_jun_15 <- tm_map(c_jun_15, removeWords, my_stopwords)
+c_jul_15 <- tm_map(c_jul_15, removeWords, my_stopwords)
+c_aug_15 <- tm_map(c_aug_15, removeWords, my_stopwords)
+c_sep_15 <- tm_map(c_sep_15, removeWords, my_stopwords)
+c_oct_15 <- tm_map(c_oct_15, removeWords, my_stopwords)
+c_nov_15 <- tm_map(c_nov_15, removeWords, my_stopwords)
+c_dec_15 <- tm_map(c_dec_15, removeWords, my_stopwords)
+c_jan_16 <- tm_map(c_jan_16, removeWords, my_stopwords)
+c_feb_16 <- tm_map(c_feb_16, removeWords, my_stopwords)
+c_mar_16 <- tm_map(c_mar_16, removeWords, my_stopwords)
+c_apr_16 <- tm_map(c_apr_16, removeWords, my_stopwords)
+c_may_16 <- tm_map(c_may_16, removeWords, my_stopwords)
+c_jun_16 <- tm_map(c_jun_16, removeWords, my_stopwords)
+c_jul_16 <- tm_map(c_jul_16, removeWords, my_stopwords)
+c_aug_16 <- tm_map(c_aug_16, removeWords, my_stopwords)
+c_sep_16 <- tm_map(c_sep_16, removeWords, my_stopwords)
+c_oct_16 <- tm_map(c_oct_16, removeWords, my_stopwords)
+c_nov_16 <- tm_map(c_nov_16, removeWords, my_stopwords)
+
+# I then create document term matrices:
+dtm_jun_15 <- DocumentTermMatrix(c_jun_15, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_jul_15 <- DocumentTermMatrix(c_jul_15, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_aug_15 <- DocumentTermMatrix(c_aug_15, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_sep_15 <- DocumentTermMatrix(c_sep_15, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_oct_15 <- DocumentTermMatrix(c_oct_15, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_nov_15 <- DocumentTermMatrix(c_nov_15, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_dec_15 <- DocumentTermMatrix(c_dec_15, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_jan_16 <- DocumentTermMatrix(c_jan_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_feb_16 <- DocumentTermMatrix(c_feb_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_mar_16 <- DocumentTermMatrix(c_mar_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_apr_16 <- DocumentTermMatrix(c_apr_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_may_16 <- DocumentTermMatrix(c_may_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_jun_16 <- DocumentTermMatrix(c_jun_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_jul_16 <- DocumentTermMatrix(c_jul_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_aug_16 <- DocumentTermMatrix(c_aug_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_sep_16 <- DocumentTermMatrix(c_sep_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_oct_16 <- DocumentTermMatrix(c_oct_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+dtm_nov_16 <- DocumentTermMatrix(c_nov_16, control = list(tolower = TRUE, 
+                          removePunctuation = TRUE, removeNumbers = TRUE,
+                          stopwords = TRUE, stemming=TRUE))
+```
+I now have a DTM for every month, and I can begin analyzing the frequency of different words and how these frequencies change over time:
+
+```{r}
+# I now create a loop that spits out the most frequent terms in every month:
+
+months_chunked_dtm <- list(dtm_jun_16, dtm_jul_16, dtm_aug_15, dtm_sep_15, dtm_oct_15, dtm_nov_15, dtm_dec_15, dtm_jan_16, dtm_feb_16, dtm_mar_16, dtm_apr_16, dtm_may_16, dtm_jun_16, dtm_jul_16, dtm_aug_16, dtm_sep_16, dtm_oct_16, dtm_nov_16) 
+
+# Define a function to take as its inptút a list of DTMs and return their frequencies relative to the number of different terms in the DTM
+get_freq <- function(dtm){
+  findFreqTerms(dtm, lowfreq= (dtm$ncol/100))
+}
+
+# apply this function to all DTMs
+freq_terms <- lapply(months_chunked_dtm, get_freq) 
+freq_terms
+```
+Unfortunately, eyeballing the most frequent terms in each month shows that all words are fairly uncontroversial, i.e. no 'liar', 'demagogue' or even 'assault'. This means that there is little point in moving forward with an explorative analysis of the change of the most frequent terms. 
+
+I am able, however, to find the frecuency of specific words, for example the following words: 
+```{r}
+z <- inspect( dtm_nov_16[dimnames(dtm_nov_16)$Docs, c("lie", "accus", "putin", "assault", "women", "danger")])
+colSums(z)
+
+````
+Due to the stemming of the words, it is hard to predict what form specific key words will take. For that reason, extracting frequencies of words of interest is hard to do with an apriori word list. Also, the above function, 'inspect', throws an error instead of 0 in cases where the word does not appear at all. This means that I will have to create specialized word-lists for all different chunks of months and cannot loop through all DTM's at once. 
+
+# ANALYZING SENTIMENTS
+```{r}
+# I create a list of all the different months:
+months_chunked <- list(jun_15, jul_15, aug_15, sep_15, oct_15, nov_15, dec_15, jan_16, feb_16, mar_16, apr_16, may_16, jun_16, jul_16, aug_16, sep_16, oct_16, nov_16)
+
+# Define a function to take as its input a list of month-dataframes and return the sentiments og the months
+get_sentiment <- function(chunk){
+  snippet_df <- data.frame(chunk$snippet) # get snippet as dataframe
+  snippet_vec <-  as.vector(snippet_df$chunk.snippet) # get snippet out of this dataframe as vector
+  snippet_char <- paste(c(snippet_vec), collapse=', ' ) #collapse into character
+  sentiment <- get_nrc_sentiment(snippet_char) # get sentiment
+  sentiment/(nrow(chunk)) # divide by number of rows to get percentage
+}
+
+# Apply this function to get sentiment for every month:
+sentiment <- sapply(months_chunked, get_sentiment)
+
+# This results in a wide dataset, and I want to transpose columns and rows::
+sentiment <- as.data.frame(t(sentiment))
+
+# This object is still not a dataframe, I therefore use the following command to create a dataframe:
+sentiment_df <- data.frame(matrix(unlist(sentiment), nrow=18, byrow=T))
+
+# I add date-column:
+sentiment_df$date <- as.vector(c('jun_15', 'jul_15', 'aug_15', 'sep_15', 'oct_15', 'nov_15', 'dec_15', 'jan_16', 'feb_16', 'mar_16', 'apr_16', 'may_16', 'jun_16', 'jul_16', 'aug_16', 'sep_16', 'oct_16', 'nov_16'))
+
+# I code the date as a factor, so that ggplot will not sort it for me in the plot:
+sentiment_df$date <- factor(sentiment_df$date, levels = sentiment_df$date)
+
+colnames(sentiment_df) <- c('anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust', 'negative', 'positive', 'date')
+rownames(sentiment_df) <- c('jun_15', 'jul_15', 'aug_15', 'sep_15', 'oct_15', 'nov_15', 'dec_15', 'jan_16', 'feb_16', 'mar_16', 'apr_16', 'may_16', 'jun_16', 'jul_16', 'aug_16', 'sep_16', 'oct_16', 'nov_16')
+
+# I get average sentiment-score by subtracting negative from positive:
+sentiment_df$sentiment <- sentiment_df$positive - sentiment_df$negative
+
+# I now try to plot the development of net positive sentiment over time: 
+ggplot(data = sentiment_df, aes(x = date, y = sentiment)) +
+  geom_point()+
+  geom_bar(stat = "identity")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+  xlab("Sentiment") + ylab("positive-negative") + ggtitle("Total Sentiment Score for Snippets")
+
+# also want to see the development of the individual sentiments:
+ggplot(data = sentiment_df, aes(x = date, y = value, color = variable)) +
+  geom_point((aes(y = anger, col = "anger")))+
+  geom_point((aes(y = disgust, col = "disgust")))+
+  geom_point((aes(y = fear, col = "fear")))+
+  geom_point((aes(y = joy, col = "joy")))+
+  geom_point((aes(y = sadness, col = "sadness")))+
+  geom_point((aes(y = surprise, col = "surprise")))+
+  geom_point((aes(y = trust, col = "trust")))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+  xlab("Sentiment") + ylab("Presence as proportion of articles") + ggtitle("Total Percentages for all Sentiments")
+```
+
+# ANALYZING FULL LENGTH ARTICLES
+
+```{r}
+full_jun <- as.data.frame(read.csv("June_articles2.csv"))
+dates_jun <- read.csv("June_date2.csv")
+dates_jun <- as.Date(dates_jun$X1.of, format = "%m/%d")
+
+# I get sentiments:
+df_june_sentiments <- lapply(as.vector(full_jun[,1]), get_nrc_sentiment)
+june_sentiment <- as.data.frame(t(df_june_sentiments))
+sentiment_df <- data.frame(matrix(unlist(june_sentiment), nrow=104, byrow=T))
+
+
+df_june <- cbind(full_jun, dates_jun, sentiment_df)
+june_df <- data.frame(matrix(unlist(june_f), nrow=104, byrow=F))
+
+colnames(df_june) <- c('articles', 'date', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust', 'negative', 'positive')
+
+# sentiment analysis
+df_june$sentiment <- df_june$positive - df_june$negative
+# There are multiple articles pr day, so I get the mean sentiment pr day using dplyr:
+sentiment_day <- df_june %>% # I put in my dataset
+  group_by(date)  %>% # grouping by date
+  summarise(date.sentiment=mean(sentiment, na.rm=T)) # name new variable and specify function
+
+as.data.frame(sentiment_day)
+
+# I now graph the average sentiment:
+ggplot(data =sentiment_day, aes(x = date, y = date.sentiment)) +
+  geom_point()+
+  geom_bar(stat = "identity")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+  xlab("Sentiment") + ylab("positive-negative") + ggtitle("Total Sentiment Score for June 15 to July 16")
+
+```
+
+I repeat all these steps for the last month before Trumps election:
+
+```{r}
+full_nov1 <- as.data.frame(read.csv("November_articles1.csv"))
+full_nov2 <- as.data.frame(read.csv("November_articles2.csv"))
+nov_dates1 <- as.data.frame(read.csv("November_date1a.csv"))
+nov_dates2 <- as.data.frame(read.csv("November_date2.csv"))
+
+nov_dates1a <- as.Date(nov_dates1$X2.of, format = "%m/%d")
+nov_dates2a <- as.Date(nov_dates2$X1.of, format = "%m/%d")
+
+# I now wish to combine the dataframes into one dataframe:
+colnames(nov_dates1) <- c('date')
+colnames(nov_dates1) <- c('date')
+colnames(full_nov1) <- c('articles')
+colnames(full_nov2) <- c('articles')
+November_all <- rbind(full_nov1, full_nov2)
+Dates_nov_all <- rbind(as.vector(nov_dates1a), as.vector(nov_dates2a))
+
+View(nov_dates2a)
+ 
