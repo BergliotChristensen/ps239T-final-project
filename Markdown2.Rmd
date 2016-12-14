@@ -175,15 +175,15 @@ get_freq <- function(dtm){
 }
 
 # apply this function to all DTMs
-freq_terms <- lapply(months_chunked_dtm, get_freq) 
-freq_terms
+# freq_terms <- lapply(months_chunked_dtm, get_freq) 
+# freq_terms blanked out due to space issues
 ```
 Unfortunately, eyeballing the most frequent terms in each month shows that all words are fairly uncontroversial, i.e. no 'liar', 'demagogue' or even 'assault'. This means that there is little point in moving forward with an explorative analysis of the change of the most frequent terms. 
 
 I am able, however, to find the frecuency of specific words, for example the following words: 
 ```{r}
-z <- inspect( dtm_nov_16[dimnames(dtm_nov_16)$Docs, c("lie", "accus", "putin", "assault", "women", "danger")])
-colSums(z)
+# z <- inspect( dtm_nov_16[dimnames(dtm_nov_16)$Docs, c("lie", "accus", "putin", "assault", "women", "danger")])
+# colSums(z)
 
 ````
 Due to the stemming of the words, it is hard to predict what form specific key words will take. For that reason, extracting frequencies of words of interest is hard to do with an apriori word list. Also, the above function, 'inspect', throws an error instead of 0 in cases where the word does not appear at all. This means that I will have to create specialized word-lists for all different chunks of months and cannot loop through all DTM's at once. 
@@ -250,6 +250,7 @@ full_jun <- as.data.frame(read.csv("June_articles2.csv"))
 dates_jun <- read.csv("June_date2.csv")
 dates_jun <- as.Date(dates_jun$X1.of, format = "%m/%d")
 
+
 # I get sentiments:
 df_june_sentiments <- lapply(as.vector(full_jun[,1]), get_nrc_sentiment)
 june_sentiment <- as.data.frame(t(df_june_sentiments))
@@ -257,7 +258,7 @@ sentiment_df <- data.frame(matrix(unlist(june_sentiment), nrow=104, byrow=T))
 
 
 df_june <- cbind(full_jun, dates_jun, sentiment_df)
-june_df <- data.frame(matrix(unlist(june_f), nrow=104, byrow=F))
+june_df <- data.frame(matrix(unlist(df_june), nrow=104, byrow=F))
 
 colnames(df_june) <- c('articles', 'date', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust', 'negative', 'positive')
 
@@ -277,7 +278,10 @@ ggplot(data =sentiment_day, aes(x = date, y = date.sentiment)) +
   theme(axis.text.x = element_text(angle = 60, hjust = 1))+
   xlab("Sentiment") + ylab("positive-negative") + ggtitle("Total Sentiment Score for June 15 to July 16")
 
+mean(sentiment_day$date.sentiment)
 ```
+The graph shows that coverage of Trump was mostly positive. All dates but one had positive coverage, and the mean score was 9.8, meaning that articles had app. 9 more positively attributed words/sentences than negative ones. Moreover, the graph shows that coverage actually grew less positive over the course of the summer.
+
 
 I repeat all these steps for the last month before Trumps election:
 
@@ -288,15 +292,154 @@ nov_dates1 <- as.data.frame(read.csv("November_date1a.csv"))
 nov_dates2 <- as.data.frame(read.csv("November_date2.csv"))
 
 nov_dates1a <- as.Date(nov_dates1$X2.of, format = "%m/%d")
-nov_dates2a <- as.Date(nov_dates2$X1.of, format = "%m/%d")
+nov_dates2a <- as.data.frame(as.Date(nov_dates2$X1.of, format = "%m/%d"))
 
 # I now wish to combine the dataframes into one dataframe:
 colnames(nov_dates1) <- c('date')
-colnames(nov_dates1) <- c('date')
+colnames(nov_dates2) <- c('date')
 colnames(full_nov1) <- c('articles')
 colnames(full_nov2) <- c('articles')
-November_all <- rbind(full_nov1, full_nov2)
-Dates_nov_all <- rbind(as.vector(nov_dates1a), as.vector(nov_dates2a))
+November_1 <- cbind(full_nov1, nov_dates1a)
+November_2 <- cbind(full_nov2, nov_dates2a)
+colnames(November_1) <- c('articles', 'date')
+colnames(November_2) <- c('articles', 'date')
+Nov_all <- rbind(November_1, November_2)
 
-View(nov_dates2a)
+# This dataframe is too bit to work with. I therefore create a randon sample of 200 different articles to base the further analysis on:
+nov_sam <- November_2[sample(nrow(November_2),size=200,replace=FALSE),]
+
+nov2_sentiment_raw <- lapply(as.vector(nov_sam[,1]), get_nrc_sentiment)
+nov2_sentiment <- as.data.frame(t(nov2_sentiment_raw))
+nov2_sentiment_df <- data.frame(matrix(unlist(nov2_sentiment), nrow=200, byrow=T))
+nov2_sentiment_df <- nov2_sentiment_df/200 
+df_nov2 <- cbind(nov_sam, nov2_sentiment_df)
+# df_nov2 <- data.frame(matrix(unlist(df_nov2), nrow=200, byrow=F))
+
+colnames(df_nov2) <- c('articles', 'date', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust', 'negative', 'positive')
+
+# sentiment analysis
+df_nov2$sentiment <- df_nov2$positive - df_nov2$negative
+
+# There are multiple articles pr day, so I get the mean sentiment pr day using dplyr:
+sentiment_day_nov <- df_nov2 %>% # I put in my dataset
+  group_by(date)  %>% # grouping by date
+  summarise(date.sentiment=mean(sentiment, na.rm=T)) # name new variable and specify function
+
+as.data.frame(sentiment_day_nov)
+
+# I now graph the average sentiment:
+ggplot(data =sentiment_day_nov, aes(x = date, y = date.sentiment)) +
+  geom_point()+
+  geom_bar(stat = "identity")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))+
+  xlab("Sentiment") + ylab("positive-negative") + ggtitle("Total Sentiment Score for October 21 to November 7")
+```
+This graph indicates that the coverage of Trump was overall positive in the weeks leading up to the election. I find this result very surprising, to say the least. Not only did coverage on average get positive from October 30 and until the election, positive sentiments also outweighed negative sentiments on average for the entire period. 
+
+These results bring either my application of the syuzhet-package or the package itself into question.
+
+
+# WORD FREQUENCIES IN FULL LENGTH ARTICLES
+
+I initially load data and turn it into a corpus:
+```{r}
+# JUNE
+setwd("C:/Users/bergliotc/Dropbox/Berkeley/PS239T/17_project")
+june_articles <- read.csv("June_articles2.csv", header = TRUE)
+june_articles <- Corpus(VectorSource(june_articles$articles))
+
+````
+
+Next step is to proces my data before conducting analysis:
+```{r}
+
+june_dat <- Corpus(VectorSource(june_articles)) # loading the data as corpus
+june_dat <- tm_map(june_dat, removeWords, c("Donald", "Trump", "column", "words", "said", "highlight", "video")) # Removing my own stop words
+full_june_dtm <- DocumentTermMatrix(june_dat,
+           control = list(tolower = TRUE,
+                          removePunctuation = TRUE,
+                          removeNumbers = TRUE,
+                          stopwords = TRUE,
+                          stemming=TRUE))
+
+
+```
+
+I now turn to analyzing my data:
+```{r Analyzing text}
+# wordcloud!
+freq_full_june <- colSums(as.matrix(full_june_dtm))
+library(wordcloud)
+set.seed(1)
+wordcloud(names(freq_full_june), freq_full_june, min.freq = 70, colors=brewer.pal(6,"Dark2"))
+?wordcloud
+freq_full_june[1:30]
+
+
+# I also get the frequency of certain critical words of interest so that I can compare with November:
+y <- inspect( full_june_dtm[dimnames(full_june_dtm)$Docs, c("lie", "accus", "putin", "assault", "women", "danger", "racist")])
+#colSums(y)
+critical_words <- matrix(data = NA, ncol = 7, nrow = 2)
+colnames(critical_words) <- c('lie',   'accus',   'putin', 'assault',   'women',  'danger',  'racist')
+rownames(critical_words) <- c('June', 'November')
+critical_words[1,] <- colSums(y)
+
+```
+I now apply the same analysis and methods to november:
+
+```{r}
+# Due to insufficient memory on my computer, I only use the last 2.5 weeks before the election as my basis for analyzing November - the objects for the entire month before the election were simply too big for my computer to handle without crashing.
+
+novem_dat <- Corpus(VectorSource(nov_sam[,1])) # loading the data as corpus
+novem_dat <- tm_map(novem_dat, removeWords, c("Donald", "Trump", "words", "highlight", "video")) # Removing my own stop words
+novem_dtm <- DocumentTermMatrix(novem_dat,
+           control = list(tolower = TRUE,
+                          removePunctuation = TRUE,
+                          removeNumbers = TRUE,
+                          stopwords = TRUE,
+                          stemming=TRUE))
+
+
+
+freq_full_nov <- colSums(as.matrix(novem_dtm))
+set.seed(1)
+wordcloud(names(freq_full_nov), freq_full_nov, min.freq = 150, colors=brewer.pal(6,"Dark2"))
+?wordcloud
+freq_full_june[1:30]
+```
+Eyeballing the wordcloud shows that coverage was surprisingly normal - 'said', 
+```{r}
+
+findFreqTerms(novem_dtm, lowfreq=200) # I want the terms that occur at least 200 times.
+````
+
+Eyeballing these results again indicates that the coverage is somewhat neitral. Words that might be associated negatively with Trump, i.e. 'women', 'white' and 'black' are present, but those are perhaps the only ones.
+
+Surprisinly, comparing November to June does not yield that different rests, which indicates that perhaps the articles were not that critical. Another, and probably more likely, interpretation is that the articles were more critical but that the increasing levels on criticism cannot be accurately grasped by using a freqcuency-based approach.
+
+Even though the most frequent words are not overly critical, I am still interested in seeing the occurence of specific words. The following words are an initial subset of words that might be of interest:
+```{r}
+length(novem_dtm)
+z <- inspect( novem_dtm[dimnames(novem_dtm)$Docs, c("lie", "accus", "putin", "assault", "women", "danger", "racist")])
+# colSums(z) # blanked out due to space issues
+critical_words[2,] <- colSums(z)
+critical_words
+
+```
+The table shows that some words, especially assault, women, and dager became more frequent over time. 
+
+# CONCLUSION
+In conclusion, I find on basis of my analysis of snippet sentiment that coverage does indeed get more negative over time. I also find that coverage increases in sentiment broadly speaking, meaning that higher intensity of sentiments across categories (fear, anger, surprise etc) increases.
+
+Looking at the specific frequencies does not enlighten which changes of words might drive this development. Across months, snippets seem to be characterized by fairly similar terms. 
+
+Looking at full months yields contradictory findings, at least in terms of sentiments, since the last month appears to be more positive in the coverage of Trump. Looking at words frequencies confirms the picture from the snippets, since June and November appear to be characterized by fairly similar terms also in the full-length articles.
+
+I cannot on basis of my findings conclude anything final since the graphs of total sentiment scores seem to show different results for the snippets and the full articles. Moreover, the table of critical words shows that these words exibit a large increase in frequency. Further analysis is clearly needed  if I wish to make final conclusions. 
+
+One reason for the seemingly inconsistent results might be a matter of signal being lost in the noise - I have very, very large files with many words to analyze. For this reason, normal words like 'elect', 'campaign' etc simply drown out the more interesting critical words, that my table shows do actually increase in frequency.
+
+To get at this, I would need to get full-length articles and analyze them after removing the 'noise'. But determining whats noise and what should rather be counted as part of the normal election coverage is tricky and would require careful analysis.
+
+Another reason for the inconsistent results is the fact that I cast a very broad net in my article search. I find all articles involving Trump, and therefore also articles that do not specifically cover him but instead mention him in passing. These articles obviously bias my results, and would need to be removed.
  
